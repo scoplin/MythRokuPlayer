@@ -3,50 +3,29 @@
 //get the local info from the settings file
 require_once './settings.php';
 
-//make a connection to the mysql sever
-$db_handle = mysql_connect($MysqlServer, $MythTVdbuser, $MythTVdbpass);
-$db_found = mysql_select_db($MythTVdb, $db_handle);
-
-
-if ($db_found) { 
-
-	if (isset($_GET['basename']) ) {
-
-		mysql_query("DELETE FROM recorded WHERE basename = '$_GET['basename']'");
-
-		$files = glob('../data/recordings/*' . RemoveExtension($db_field['basename'])  . '*');
-		array_walk($files,'myunlink');
-
-		
-		}
-
-} else {
-
-	print "Database NOT Found ";
-	
-}
-
-	mysql_close($db_handle);
-
-
-//function to remove file extensions
-function RemoveExtension($strName)
+if (isset($_GET['basename']))
 {
-     $ext = strrchr($strName, '.');
-
-     if($ext !== false)
-     {
-         $strName = substr($strName, 0, -strlen($ext));
-     }
-     return $strName;
+    $basefname = $_GET['basename'];
+    $conditions = array('conditions' => array('basename = ? ', $basefname));
+    $recordings = Recorded::all($conditions);
+    if(count($recordings) != 1) {
+        print "There are " . count($recordings) . " items with the basename: $basefname";
+    }else{
+        $recording = $recordings[0];
+        $storage = StorageGroup::first( array('conditions' => array('groupname = ?', $recording->storagegroup)) );
+        $fname = $storage->dirname . strtok($basefname, ".");
+        
+        print "\nhere we delete $recording->basename from the database."; 
+        $recording->delete();
+        
+        foreach(glob($fname . "*") as $file){
+            print "\nhere we delete $file from the filesyste."; 
+            unlink($file);
+        }
+    }
+}else{
+    print "the 'basename' was not passed to this routine!";
 }
-
-function myunlink($t)
-{
-	unlink($t);
-}
-
-
 
 ?>
 

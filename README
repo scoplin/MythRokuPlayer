@@ -1,5 +1,4 @@
-
-MythRoku is for streaming mythtv recordings and video via Roku player
+MythRokuPlayer is for streaming mythtv recordings and video via Roku player
 It is based on the videoplayer example from Roku
 
 prerequisits:
@@ -8,6 +7,7 @@ prerequisits:
 -handbrakecli (for converting recordings to H.264 format)
 -Mythtv video are stored in H.264 format (mp4)
 -web user (eg. apache) permission to delete recordings
+-PHP ActiveRecord and its depends
 
 for more information see the Roku developer site:
 http://www.roku.com/developer
@@ -52,6 +52,9 @@ http://www.roku.com/developer
 
 	You need to edit the settings.php file with your local parameters for example
 	ip or url of your webserver.
+	
+	You need to make a symbolic link in mythweb/data on the mythtv backend that points to the mythvideo directory 
+	for the "movies" category leaf to work.
 
 4) convert recordings from mpg to mp4
 	create a user job in mythtv (mythbackend setup-> general-> Job Queue)

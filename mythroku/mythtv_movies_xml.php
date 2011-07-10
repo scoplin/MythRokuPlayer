@@ -3,81 +3,74 @@
 //get the local info from the settings file
 require_once './settings.php';
 
-//make a connection to the mysql sever
-$db_handle = mysql_connect($MysqlServer, $MythTVdbuser, $MythTVdbpass);
-$db_found = mysql_select_db($MythTVdb, $db_handle);
+//print "\n***HOSTNAME:" . getHostname() . "\n";
+//print "\n***HTTP_CLIENT_IP:" . $_SERVER['HTTP_CLIENT_IP'] . "\n";
+//print "\n***REMOTE_ADDR:" . $_SERVER['REMOTE_ADDR'] . "\n";
 
-//set the stream id to some abitary number 
-$counter = 1000;
 
-//define quiery for sorting the records, only get files that are .mp4
-if ($db_found) {
+$conditions = array('conditions' => array('filename like ? AND host > ?', '%.mp4', '')); //using combination of Storage Group and locally hosted video the host value in videometadata is currently only set for the backend machine.  TODO: check for actual host name
+$order = array('order' => 'insertdate ASC');
+if (isset($_GET['sort'])) //there is not GET in the session when running php from CLI
+{
+    switch($_GET['sort'])
+    {
+        case "date":
+            $order = array('order' => 'insertdate DESC');
+            break;
+        case "title":
+            $order = array('order' => 'title ASC');
+            break;
+        case "genre":
+            $order = array('order' => 'category ASC');
+            break;
+        case "year":
+            $order = array('order' => 'year DESC');
+            break;
+        default:
+            break;
+    }	
+}
 
-	if (isset($_GET['sort']) && $_GET['sort'] == 'year') {
-		$SQL = "SELECT * FROM videometadata WHERE filename LIKE '%.mp4' ORDER BY year DESC ";
-	}elseif (isset($_GET['sort']) && $_GET['sort'] == 'title'){
-		$SQL = "SELECT * FROM videometadata WHERE filename LIKE '%.mp4' ORDER BY title ASC ";
-	}elseif (isset($_GET['sort']) && $_GET['sort'] == 'genre'){
-		$SQL = "SELECT * FROM videometadata WHERE filename LIKE '%.mp4' ORDER BY category ASC";
-	}
-	else {
-		$SQL = "SELECT * FROM videometadata WHERE filename LIKE '%.mp4' ";
-	}
-
-//grab the data
-$result = mysql_query($SQL);
-$num_rows = mysql_num_rows($result);
+$item = VideoMetadata::all( array_merge($conditions, $order) );
 	
 //print the xml header
 print "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?> 
 	<feed>
 	<!-- resultLength indicates the total number of results for this feed -->
-	<resultLength>" . $num_rows . "</resultLength>
+	<resultLength>" . count($item) . "</resultLength>
 	<!-- endIndix  indicates the number of results for this *paged* section of the feed -->
-	<endIndex>" . $num_rows . "</endIndex>";
+	<endIndex>" . count($item)  . "</endIndex>";
 
-//print out all the records in xml format for roku to read 
-while ($db_field = mysql_fetch_assoc($result) ) {
+	$storage = StorageGroup::first( array('conditions' => array('groupname = ?', 'Videos')) );
+	
+    foreach ($item as $key => $value)
+    {   
+    	$category = VideoCategory::first( array('conditions' => array('intid = ?', $value->category)) );    	
+    	$streamUrl = implode("/", array_map("rawurlencode", explode("/", $MythTVvideos . $value->filename)));
 
-	$genrenum = mysql_fetch_assoc(mysql_query("SELECT idgenre FROM videometadatagenre where idvideo='" . $db_field['intid'] . "' "));
-	if ($genrenum['idgenre'] == 0 ) { $genrenum['idgenre'] = 22; }
-        $genre = mysql_fetch_assoc(mysql_query("SELECT genre FROM videogenre where intid='" . $genrenum['idgenre'] . "' "));
-
+	    //print out the record in xml format for roku to read 
 		print "	
-		<item sdImg=\"" . $WebServer . "/mythweb/mythroku/image.php?image=" . rawurlencode($db_field['coverfile']) . "\" hdImg=\"" . $WebServer . "/mythroku/image.php?image=" . rawurlencode($db_field['coverfile']) . "\">
-			<title>" . htmlspecialchars(preg_replace('/[^(\x20-\x7F)]*/','', $db_field['title'] )) . "</title>
-			<contentId>" . $counter++ . "</contentId>
+		<item sdImg=\"" . $WebServer . "/" . $MythRokuDir . "/image.php?image=" . rawurlencode($value->coverfile) . "\" hdImg=\"" . $WebServer . "/" . $MythRokuDir . "/image.php?image=" . rawurlencode($value->coverfile) . "\">
+			<title>" . htmlspecialchars(preg_replace('/[^(\x20-\x7F)]*/','', $value->title )) . "</title>
+			<contentId>" . print_r(1000+$key,true) . "</contentId>
 			<contentType>Movies</contentType>
 			<contentQuality>". $RokuDisplayType . "</contentQuality>
 			<media>
 				<streamFormat>mp4</streamFormat>
 				<streamQuality>". $RokuDisplayType . "</streamQuality>
 				<streamBitrate>". $BitRate . "</streamBitrate>
-				<streamUrl>" . $WebServer . "/data/video/" . rawurlencode($db_field['filename']) ."</streamUrl>
+				<streamUrl>" . $WebServer . $streamUrl ."</streamUrl>
 			</media>
-			<synopsis>" . htmlspecialchars(preg_replace('/[^(\x20-\x7F)]*/','', $db_field['plot'] )) . "</synopsis>	
-			<genres>" . $genre['genre'] . "</genres>
-			<runtime>" .$db_field['length'] . "</runtime>
-			<date>Year: " . $db_field['year'] . "</date>
+			<synopsis>" . htmlspecialchars(preg_replace('/[^(\x20-\x7F)]*/','', $value->plot )) . "</synopsis>
+			<genres>" . htmlspecialchars(preg_replace('/[^(\x20-\x7F)]*/','', $category->category )) . "</genres>
+			<runtime>" .$value->length . "</runtime>
+			<date>Year: " . $value->year . "</date>
 			<tvormov>movie</tvormov>
-			<starrating>" . $db_field['userrating'] * 10 ."</starrating>
+			<starrating>" . $value->userrating * 10 ."</starrating>
 		</item>";	
-		}	
-	//}
-	
+    }
+
 print "</feed>";
-
-
-	}
-
-//throw error if can not connect to database.
-else {
-print "Database NOT Found ";
-
-}
-
-//close mysql pointer
-mysql_close($db_handle);
 
 ?>
 

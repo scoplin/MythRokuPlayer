@@ -1,9 +1,16 @@
-V1.1 11/13/10
+V2.0    07/2011 Richard Hendershot
+    convert to PHP ActiveRecord for data access layer
+    clean up use of videometadata for mythvideo (mythtv_movies_xml.php)
+    only show movies from the backend host as other mythtv frontends will also create videometadata entries
+    clean up mythtv_tv_del.php
+    compatible with existing MythRokuPlayer dist as only backend changes are made
+    changed setup key to $MythTVvideos as it better reflects its use in mythtv_movies_xml.php
 
-added function to delete recordings
-only display files that can be streamed
-scale video posters, speed up displaying
-subtitle on recordings poster screen
+V1.1    11/13/10
+    added function to delete recordings
+    only display files that can be streamed
+    scale video posters, speed up displaying
+    subtitle on recordings poster screen
 
 v1.0 
-functioning version (beta)
+    functioning version (beta)
