@@ -77,16 +77,14 @@ fi
 
 UPDATE_DATABASE=${UPDATE_DATABASE:-true}
 HANDBRAKE_ARGS=${HANDBRAKE_ARGS:-"--preset='iPhone & iPod Touch'"}
-LOGFILE=${LOGFILE:-"/var/log/mythtv/rokuencode.%s.log"}
+LOGFILE=${LOGFILE:-}
 GENERATE_PREVIEWS=${LOGFILE:-"/var/log/mythtv/rokuencode.%s.log"}
 
-# Calculate the new base name
+# Calculate the new nam and base name
 newbname=$(echo $MPGFILE | sed 's/\(.*\)\..*/\1_roku/')
-log=$(printf "$LOGFILE" $newbname)
+newname="$MYTHDIR/${newbname}.mp4"
 
-# Execute everything else in a subshell directed to the log
-(
-
+function doencode {
 if [[ -n "$DRY_RUN" ]]; then
     echo "Dry run only.  No actions will be performed.  Configuration is:"
     echo "    UPDATE_DATABASE=${UPDATE_DATABASE}"
@@ -96,7 +94,6 @@ if [[ -n "$DRY_RUN" ]]; then
     exit 0;
 fi
 
-newname="$MYTHDIR/${newbname}.mp4"
 echo "Roku Encode $MPGFILE to $newname"
 /usr/bin/HandBrakeCLI $HANDBRAKE_ARGS -i $MYTHDIR/$MPGFILE -o $newname
 
@@ -127,8 +124,17 @@ fi
 #   /usr/local/bin/makebif.py -m 0 $newname
 
 echo "Complete"
-) 2>&1 | \
-while read line; do
-    echo "$(date --rfc-3339=seconds): $line"
-done > $log
+}
 
+# Set up logging and execute
+if [[ -n "LOGFILE" ]]; then
+    log=$(printf "$LOGFILE" $newbname)
+    echo "Roku Encode $MPGFILE to $newname.  Logging to $log"
+    doencode 2>&1 | \
+        while read line; do
+            echo "$(date --rfc-3339=seconds): $line"
+        done > $log
+else
+    echo "Roku Encode $MPGFILE to $newname.  Logging to console"
+    doencode
+fi
