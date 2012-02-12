@@ -9,6 +9,11 @@ prerequisits:
 -web user (eg. apache) permission to delete recordings
 -PHP ActiveRecord and its depends
 
+The PHP activerecord repo can be cloned with the following git command in
+the mythroku directory:
+
+       $ git clone https://github.com/kla/php-activerecord.git
+
 for more information see the Roku developer site:
 http://www.roku.com/developer
 
