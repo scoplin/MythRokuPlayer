@@ -1,0 +1,15 @@
+# Default
+HANDBRAKE_ARGS="--preset='iPhone & iPod Touch'"
+
+# Other possibilities
+#HANDBRAKE_ARGS="-e x264 -b 1500 -E faac -B 256 -R 48 -w 720"
+#HANDBRAKE_ARGS="-e x264 -r 29.97 -b 1500 -E faac -B 256 -R 48 --decomb"
+
+# Whether to update the database with the new data or not
+UPDATE_DATABASE=false
+
+# Whether to generate preview pngs
+GENERATE_PREVIEWS=false
+
+# Log file location.  Can be a pattern to include the original base name of the file in the log
+LOGFILE="/var/log/mythtv/rokuencode.%s.log"
