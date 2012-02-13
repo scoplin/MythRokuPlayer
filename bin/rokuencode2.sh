@@ -16,12 +16,16 @@ function usage {
         echo
     fi
     cat >&2 <<EOL
-$(basename $0) [ -n | --dry-run ] <mythdir> <mpg file>
+$(basename $0) [ -n | --dry-run ] <mythdir> <mpg file> <command>
 
 $(basename $0) will attempt to encode an mpeg file to mp4
 using the handbrake CLI.  It will also optionally update
 the database and remove the original file, but those
 options must be explicitly enabled.
+
+Command can be one of the following
+    encode - Encodes an mpg file to an mp4
+    reset  - Resets the database back to the original recording
 EOL
     exit $rc
 }
@@ -30,11 +34,11 @@ if [[ "-h" = "$1" || "--help" = "$1" ]]; then
     usage
 fi
 
-[[ $# -eq 2 ]] || usage "Incorrect number of arguments"
+[[ $# -eq 3 ]] || usage "Incorrect number of arguments"
 
-# convert mpeg file to mp4 using handbrakecli
 MYTHDIR=$1
 MPGFILE=$2
+COMMAND=$3
 
 # Function to find a readable file in list of possible locations
 function findFile {
@@ -80,20 +84,32 @@ HANDBRAKE_ARGS=${HANDBRAKE_ARGS:-"--preset='iPhone & iPod Touch'"}
 LOGFILE=${LOGFILE:-}
 GENERATE_PREVIEWS=${LOGFILE:-"/var/log/mythtv/rokuencode.%s.log"}
 
-# Calculate the new nam and base name
-newbname=$(echo $MPGFILE | sed 's/\(.*\)\..*/\1_roku/')
-newname="$MYTHDIR/${newbname}.mp4"
+# Calculate the base name for the file
+basename=$(echo $MPGFILE | sed 's/\(.*\)\..*/\1/')
+
+function process_command {
+    if [[ -n "$DRY_RUN" ]]; then
+        echo "Dry run only.  No actions will be performed.  Configuration is:"
+        echo "    COMMAND=${COMMAND}"
+        echo "    UPDATE_DATABASE=${UPDATE_DATABASE}"
+        echo "    HANDBRAKE_ARGS=${HANDBRAKE_ARGS}"
+        echo "    LOGFILE=${LOGFILE}"
+        echo "    GENERATE_PREVIEWS=${GENERATE_PREVIEWS}"
+        exit 0;
+    fi
+
+    case $COMMAND in
+        encode)
+          doencode
+          ;;
+        reset)
+          doreset
+          ;;
+    esac
+}
 
 function doencode {
-if [[ -n "$DRY_RUN" ]]; then
-    echo "Dry run only.  No actions will be performed.  Configuration is:"
-    echo "    UPDATE_DATABASE=${UPDATE_DATABASE}"
-    echo "    HANDBRAKE_ARGS=${HANDBRAKE_ARGS}"
-    echo "    LOGFILE=${LOGFILE}"
-    echo "    GENERATE_PREVIEWS=${GENERATE_PREVIEWS}"
-    exit 0;
-fi
-
+newname="$MYTHDIR/${basename}.mp4"
 echo "Roku Encode $MPGFILE to $newname"
 /usr/bin/HandBrakeCLI $HANDBRAKE_ARGS -i $MYTHDIR/$MPGFILE -o $newname
 
@@ -106,10 +122,12 @@ echo "Generate Previews"
 
 if [[ "$UPDATE_DATABASE" = "true" ]]; then
 echo "Database/remove"
-# remove the orignal mpg and update the db to point to the mp4
+# update the db to point to the mp4
 NEWFILESIZE=$(du -b "$newname" | cut -f1)
 mysql --user=$DBUserName --password=$DBPassword --host=$DBHostName $DBName <<EOL
-UPDATE recorded SET basename='$newbname.mp4',filesize='$NEWFILESIZE',transcoded='1' WHERE basename='$MPGFILE';
+UPDATE recorded
+SET basename='$basename.mp4',filesize='$NEWFILESIZE',transcoded='1'
+WHERE basename='$MPGFILE';
 EOL
 #rm $MYTHDIR/$MPGFILE
 fi
@@ -126,15 +144,31 @@ fi
 echo "Complete"
 }
 
+# Function to restore the original recording in the database
+function doreset {
+# update the db to point to the mpg
+newname="$MYTHDIR/${basename}.mpg"
+if [[ "$UPDATE_DATABASE" = "true" && -r "$newname.old" ]]; then
+mv $newname.old $newname
+NEWFILESIZE=$(du -b "$newname" | cut -f1)
+mysql --user=$DBUserName --password=$DBPassword --host=$DBHostName $DBName <<EOL
+UPDATE recorded
+SET basename='$basename.mpg',filesize='$NEWFILESIZE',transcoded='0'
+WHERE basename='$MPGFILE';
+EOL
+rm $MYTHDIR/$MPGFILE
+fi
+}
+
 # Set up logging and execute
 if [[ -n "LOGFILE" ]]; then
-    log=$(printf "$LOGFILE" $newbname)
-    echo "Roku Encode $MPGFILE to $newname.  Logging to $log"
-    doencode 2>&1 | \
+    log=$(printf "$LOGFILE" $basename)
+    echo "Roku $COMMAND $MPGFILE.  Logging to $log"
+    process_command 2>&1 | \
         while read line; do
             echo "$(date --rfc-3339=seconds): $line"
-        done > $log
+        done >> $log
 else
-    echo "Roku Encode $MPGFILE to $newname.  Logging to console"
+    echo "Roku $COMMAND $MPGFILE.  Logging to console"
     doencode
 fi
