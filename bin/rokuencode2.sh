@@ -80,6 +80,7 @@ else
 fi
 
 UPDATE_DATABASE=${UPDATE_DATABASE:-true}
+REMOVE_ORIGINAL=${REMOVE_ORIGINAL:-false}
 HANDBRAKE_ARGS=${HANDBRAKE_ARGS:-"--preset='iPhone & iPod Touch'"}
 LOGFILE=${LOGFILE:-}
 GENERATE_PREVIEWS=${LOGFILE:-"/var/log/mythtv/rokuencode.%s.log"}
@@ -129,7 +130,11 @@ UPDATE recorded
 SET basename='$basename.mp4',filesize='$NEWFILESIZE',transcoded='1'
 WHERE basename='$MPGFILE';
 EOL
-#rm $MYTHDIR/$MPGFILE
+if [[ "$REMOVE_ORIGINAL" = "true" ]]; then
+    rm $MYTHDIR/$MPGFILE
+else
+    mv $MYTHDIR/$MPGFILE $MYTHDIR/$MPGFILE.old
+fi
 fi
 
 # Make the bif files for trick play

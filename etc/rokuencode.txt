@@ -6,7 +6,8 @@ HANDBRAKE_ARGS="--preset='iPhone & iPod Touch'"
 #HANDBRAKE_ARGS="-e x264 -r 29.97 -b 1500 -E faac -B 256 -R 48 --decomb"
 
 # Whether to update the database with the new data or not
-UPDATE_DATABASE=false
+UPDATE_DATABASE=true
+DELETE_ORIGINAL=false
 
 # Whether to generate preview pngs
 GENERATE_PREVIEWS=false
