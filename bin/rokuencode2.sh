@@ -89,13 +89,16 @@ GENERATE_PREVIEWS=${LOGFILE:-"/var/log/mythtv/rokuencode.%s.log"}
 basename=$(echo $MPGFILE | sed 's/\(.*\)\..*/\1/')
 
 function process_command {
+    echo "Configuration is:"
+    echo "    COMMAND=${COMMAND}"
+    echo "    UPDATE_DATABASE=${UPDATE_DATABASE}"
+    echo "    REMOVE_ORIGINAL=${REMOVE_ORIGINAL}"
+    echo "    HANDBRAKE_ARGS=${HANDBRAKE_ARGS}"
+    echo "    LOGFILE=${LOGFILE}"
+    echo "    GENERATE_PREVIEWS=${GENERATE_PREVIEWS}"
+
     if [[ -n "$DRY_RUN" ]]; then
-        echo "Dry run only.  No actions will be performed.  Configuration is:"
-        echo "    COMMAND=${COMMAND}"
-        echo "    UPDATE_DATABASE=${UPDATE_DATABASE}"
-        echo "    HANDBRAKE_ARGS=${HANDBRAKE_ARGS}"
-        echo "    LOGFILE=${LOGFILE}"
-        echo "    GENERATE_PREVIEWS=${GENERATE_PREVIEWS}"
+        echo "Dry run only.  No actions will be performed."
         exit 0;
     fi
 
