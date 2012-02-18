@@ -83,7 +83,7 @@ UPDATE_DATABASE=${UPDATE_DATABASE:-true}
 REMOVE_ORIGINAL=${REMOVE_ORIGINAL:-false}
 HANDBRAKE_ARGS=${HANDBRAKE_ARGS:-"--preset='iPhone & iPod Touch'"}
 LOGFILE=${LOGFILE:-}
-GENERATE_PREVIEWS=${LOGFILE:-"/var/log/mythtv/rokuencode.%s.log"}
+GENERATE_PREVIEWS=${GENERATE_PREVIEWS:-"/var/log/mythtv/rokuencode.%s.log"}
 
 # Calculate the base name for the file
 basename=$(echo $MPGFILE | sed 's/\(.*\)\..*/\1/')
