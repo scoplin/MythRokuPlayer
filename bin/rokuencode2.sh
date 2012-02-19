@@ -82,8 +82,8 @@ fi
 UPDATE_DATABASE=${UPDATE_DATABASE:-true}
 REMOVE_ORIGINAL=${REMOVE_ORIGINAL:-false}
 HANDBRAKE_ARGS=${HANDBRAKE_ARGS:-"--preset='iPhone & iPod Touch'"}
-LOGFILE=${LOGFILE:-}
-GENERATE_PREVIEWS=${GENERATE_PREVIEWS:-"/var/log/mythtv/rokuencode.%s.log"}
+LOGFILE=${LOGFILE:-"/var/log/mythtv/rokuencode.%s.log"}
+GENERATE_PREVIEWS=${GENERATE_PREVIEWS:-true}
 
 # Calculate the base name for the file
 basename=$(echo $MPGFILE | sed 's/\(.*\)\..*/\1/')
@@ -113,61 +113,63 @@ function process_command {
 }
 
 function doencode {
-newname="$MYTHDIR/${basename}.mp4"
-echo "Roku Encode $MPGFILE to $newname"
-# Translate carriage returns to newlines for the log
-/usr/bin/HandBrakeCLI $HANDBRAKE_ARGS -i $MYTHDIR/$MPGFILE -o $newname | tr '\015' '\n'
+    newname="$MYTHDIR/${basename}.mp4"
+    echo "Roku Encode $MPGFILE to $newname"
+    # Translate carriage returns to newlines for the log
+    /usr/bin/HandBrakeCLI $HANDBRAKE_ARGS -i $MYTHDIR/$MPGFILE -o $newname | tr '\015' '\n'
 
-echo "Generate Previews"
-#Mythtv seems to have problems with keyframes in mp4s, so make previews with ffmpeg
-#   ffmpeg -loglevel quiet -ss 34 -vframes 1 -i $newname -y -f image2  $MYTHDIR/$newname.png
-#   ffmpeg -loglevel quiet -ss 34 -vframes 1 -i $newname -y -f image2 -s 100x75 $MYTHDIR/$newname.64.100x75.png
-#   ffmpeg -loglevel quiet -ss 34 -vframes 1 -i $newname -y -f image2 -s 320x240 $MYTHDIR/$newname.64.320x240.png
+    if [[ "$GENERATE_PREVIEWS" = "true" ]]; then
+        echo "Generate Previews"
+        # Mythtv seems to have problems with keyframes in mp4s, so make previews with ffmpeg
+        ffmpeg -loglevel quiet -ss 34 -vframes 1 -i $newname -y -f image2  $MYTHDIR/$newname.png
+        ffmpeg -loglevel quiet -ss 34 -vframes 1 -i $newname -y -f image2 -s 100x75 $MYTHDIR/$newname.64.100x75.png
+        ffmpeg -loglevel quiet -ss 34 -vframes 1 -i $newname -y -f image2 -s 320x240 $MYTHDIR/$newname.64.320x240.png
+    fi
 
 
-if [[ "$UPDATE_DATABASE" = "true" ]]; then
-echo "Database/remove"
-# update the db to point to the mp4
-NEWFILESIZE=$(du -b "$newname" | cut -f1)
-mysql --user=$DBUserName --password=$DBPassword --host=$DBHostName $DBName <<EOL
+    if [[ "$UPDATE_DATABASE" = "true" ]]; then
+        echo "Database/remove"
+        # update the db to point to the mp4
+        NEWFILESIZE=$(du -b "$newname" | cut -f1)
+        mysql --user=$DBUserName --password=$DBPassword --host=$DBHostName $DBName <<EOL
 UPDATE recorded
 SET basename='$basename.mp4',filesize='$NEWFILESIZE',transcoded='1'
 WHERE basename='$MPGFILE';
 EOL
-if [[ "$REMOVE_ORIGINAL" = "true" ]]; then
-    rm $MYTHDIR/$MPGFILE
-    rm $MYTHDIR/$MPGFILE*.png
-else
-    mv $MYTHDIR/$MPGFILE $MYTHDIR/$MPGFILE.old
-fi
-fi
+        if [[ "$REMOVE_ORIGINAL" = "true" ]]; then
+            rm $MYTHDIR/$MPGFILE
+            rm $MYTHDIR/$MPGFILE*.png
+        else
+            mv $MYTHDIR/$MPGFILE $MYTHDIR/$MPGFILE.old
+        fi
+    fi
+    
+    # Make the bif files for trick play
+    #   cd $MYTHDIR
+    # If it's HD we assume it's 16:9
+    #   echo "makebif HD"
+    #   /usr/local/bin/makebif.py -m 3 $newname
+    # If it's SD we assume it's 4:3
+    #   echo "$makebif SD"
+    #   /usr/local/bin/makebif.py -m 0 $newname
 
-# Make the bif files for trick play
-#   cd $MYTHDIR
-# If it's HD we assume it's 16:9
-#   echo "makebif HD"
-#   /usr/local/bin/makebif.py -m 3 $newname
-# If it's SD we assume it's 4:3
-#   echo "$makebif SD"
-#   /usr/local/bin/makebif.py -m 0 $newname
-
-echo "Complete"
+    echo "Complete"
 }
 
 # Function to restore the original recording in the database
 function doreset {
-# update the db to point to the mpg
-newname="$MYTHDIR/${basename}.mpg"
-if [[ "$UPDATE_DATABASE" = "true" && -r "$newname.old" ]]; then
-mv $newname.old $newname
-NEWFILESIZE=$(du -b "$newname" | cut -f1)
-mysql --user=$DBUserName --password=$DBPassword --host=$DBHostName $DBName <<EOL
+    # update the db to point to the mpg
+    newname="$MYTHDIR/${basename}.mpg"
+    if [[ "$UPDATE_DATABASE" = "true" && -r "$newname.old" ]]; then
+    mv $newname.old $newname
+    NEWFILESIZE=$(du -b "$newname" | cut -f1)
+    mysql --user=$DBUserName --password=$DBPassword --host=$DBHostName $DBName <<EOL
 UPDATE recorded
 SET basename='$basename.mpg',filesize='$NEWFILESIZE',transcoded='0'
 WHERE basename='$MPGFILE';
 EOL
-rm $MYTHDIR/$MPGFILE
-rm $MYTHDIR/$MPGFILE*.png
+    rm $MYTHDIR/$MPGFILE
+    rm $MYTHDIR/$MPGFILE*.png
 fi
 }
 
