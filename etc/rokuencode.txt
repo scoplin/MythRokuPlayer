@@ -1,5 +1,5 @@
 # Default
-HANDBRAKE_ARGS="--preset='iPhone & iPod Touch'"
+HANDBRAKE_ARGS="--preset='AppleTV 2'"
 
 # Other possibilities
 #HANDBRAKE_ARGS="-e x264 -b 1500 -E faac -B 256 -R 48 -w 720"

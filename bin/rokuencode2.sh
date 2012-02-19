@@ -136,6 +136,7 @@ WHERE basename='$MPGFILE';
 EOL
 if [[ "$REMOVE_ORIGINAL" = "true" ]]; then
     rm $MYTHDIR/$MPGFILE
+    rm $MYTHDIR/$MPGFILE*.png
 else
     mv $MYTHDIR/$MPGFILE $MYTHDIR/$MPGFILE.old
 fi
@@ -166,6 +167,7 @@ SET basename='$basename.mpg',filesize='$NEWFILESIZE',transcoded='0'
 WHERE basename='$MPGFILE';
 EOL
 rm $MYTHDIR/$MPGFILE
+rm $MYTHDIR/$MPGFILE*.png
 fi
 }
 
