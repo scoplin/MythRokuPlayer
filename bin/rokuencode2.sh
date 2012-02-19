@@ -16,12 +16,15 @@ function usage {
         echo
     fi
     cat >&2 <<EOL
-$(basename $0) [ -n | --dry-run ] <mythdir> <mpg file> <command>
+$(basename $0) [ -n | --dry-run ] <mythdir> <mpg file> <command> [ <jobid> ]
 
 $(basename $0) will attempt to encode an mpeg file to mp4
 using the handbrake CLI.  It will also optionally update
 the database and remove the original file, but those
 options must be explicitly enabled.
+
+If the jobid is provided, this will update the jobqueue
+table with status information from HandBrakeCLI.
 
 Command can be one of the following
     encode - Encodes an mpg file to an mp4
@@ -34,11 +37,12 @@ if [[ "-h" = "$1" || "--help" = "$1" ]]; then
     usage
 fi
 
-[[ $# -eq 3 ]] || usage "Incorrect number of arguments"
+[[ $# -eq 3 ]] || [[ $# -eq 4 ]] || usage "Incorrect number of arguments"
 
 MYTHDIR=$1
 MPGFILE=$2
 COMMAND=$3
+JOBID=$4
 
 # Function to find a readable file in list of possible locations
 function findFile {
@@ -79,6 +83,15 @@ else
     . $ROKU_ENCODE_CONFIG_FILE
 fi
 
+# Validate/normalize jobid
+JOBID=$(
+mysql -N --user=$DBUserName --password=$DBPassword --host=$DBHostName $DBName <<EOL
+SELECT id
+FROM jobqueue
+WHERE id='$JOBID'
+EOL
+)
+
 UPDATE_DATABASE=${UPDATE_DATABASE:-true}
 REMOVE_ORIGINAL=${REMOVE_ORIGINAL:-false}
 HANDBRAKE_ARGS=${HANDBRAKE_ARGS:-"--preset='iPhone & iPod Touch'"}
@@ -112,13 +125,33 @@ function process_command {
     esac
 }
 
+# A function that reads its stdin for HandBrakeCLI status output and sends through
+# updates with each whole increase in % complete.  It will also send those updates
+# to the jobqueue table
+function handbrake_progress {
+    oldpercent=0
+    while read status; do
+        percent=$(echo "$status" | sed -e 's/.* \([0-9]*\)\.[0-9][0-9] %.*/\1/')
+        if [[ "$oldpercent" != "$percent" ]]; then
+            if [[ -n "$JOBID" ]]; then
+                mysql --user=$DBUserName --password=$DBPassword --host=$DBHostName $DBName <<EOL
+UPDATE jobqueue
+SET comment='$status'
+WHERE id=$JOBID
+EOL
+            fi
+            echo "$status"
+            oldpercent=$percent
+        fi
+    done
+}
+
 function doencode {
     newname="$MYTHDIR/${basename}.mp4"
     echo "Roku Encode $MPGFILE to $newname"
-    # Translate carriage returns to newlines for the log, and quiet down the progress reporting
-    # Handbrake sends log data to stderr and progress to stdout, so we only display 1/100th of the stdout stream
-    /usr/bin/HandBrakeCLI $HANDBRAKE_ARGS -i $MYTHDIR/$MPGFILE -o $newname | tr '\015' '\n' | \
-        awk '{ if (count++ % 100 == 0) print}'
+    # Translate carriage returns to newlines for the log, and report progress sanely
+    /usr/bin/HandBrakeCLI $HANDBRAKE_ARGS -i $MYTHDIR/$MPGFILE -o $newname | tr '\015' '\n' | handbrake_progress
+    [[ $? -eq 0 ]] || exit $?
 
     if [[ "$GENERATE_PREVIEWS" = "true" ]]; then
         echo "Generate Previews"
