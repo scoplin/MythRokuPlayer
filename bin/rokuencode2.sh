@@ -1,5 +1,9 @@
 #!/bin/bash
 
+# Don't tolerate errors
+set -o pipefail
+set -e
+
 DRY_RUN=
 if [[ "-n" = "$1" || "--dry-run" = "$1" ]]; then
     # It's a dry run
@@ -117,10 +121,10 @@ function process_command {
 
     case $COMMAND in
         encode)
-          doencode
+          doencode || exit $?
           ;;
         reset)
-          doreset
+          doreset || exit $?
           ;;
     esac
 }
@@ -150,6 +154,7 @@ function doencode {
     newname="$MYTHDIR/${basename}.mp4"
     echo "Roku Encode $MPGFILE to $newname"
     # Translate carriage returns to newlines for the log, and report progress sanely
+    set -o pipefail
     /usr/bin/HandBrakeCLI $HANDBRAKE_ARGS -i $MYTHDIR/$MPGFILE -o $newname | tr '\015' '\n' | handbrake_progress
     [[ $? -eq 0 ]] || exit $?
 
@@ -172,8 +177,8 @@ SET basename='$basename.mp4',filesize='$NEWFILESIZE',transcoded='1'
 WHERE basename='$MPGFILE';
 EOL
         if [[ "$REMOVE_ORIGINAL" = "true" ]]; then
-            rm $MYTHDIR/$MPGFILE
-            rm $MYTHDIR/$MPGFILE*.png
+            rm -f $MYTHDIR/$MPGFILE
+            rm -f $MYTHDIR/$MPGFILE*.png
         else
             mv $MYTHDIR/$MPGFILE $MYTHDIR/$MPGFILE.old
         fi
@@ -203,8 +208,8 @@ UPDATE recorded
 SET basename='$basename.mpg',filesize='$NEWFILESIZE',transcoded='0'
 WHERE basename='$MPGFILE';
 EOL
-    rm $MYTHDIR/$MPGFILE
-    rm $MYTHDIR/$MPGFILE*.png
+    rm -f $MYTHDIR/$MPGFILE
+    rm -f $MYTHDIR/$MPGFILE*.png
 fi
 }
 
@@ -212,11 +217,12 @@ fi
 if [[ -n "LOGFILE" ]]; then
     log=$(printf "$LOGFILE" $basename)
     echo "Roku $COMMAND $MPGFILE.  Logging to $log"
+    set -o pipefail
     process_command 2>&1 | \
         while read line; do
             echo "$(date --rfc-3339=seconds): $line"
         done >> $log
 else
     echo "Roku $COMMAND $MPGFILE.  Logging to console"
-    doencode
+    process_command || exit $?
 fi
