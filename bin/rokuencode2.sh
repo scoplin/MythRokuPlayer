@@ -115,8 +115,10 @@ function process_command {
 function doencode {
     newname="$MYTHDIR/${basename}.mp4"
     echo "Roku Encode $MPGFILE to $newname"
-    # Translate carriage returns to newlines for the log
-    /usr/bin/HandBrakeCLI $HANDBRAKE_ARGS -i $MYTHDIR/$MPGFILE -o $newname | tr '\015' '\n'
+    # Translate carriage returns to newlines for the log, and quiet down the progress reporting
+    # Handbrake sends log data to stderr and progress to stdout, so we only display 1/100th of the stdout stream
+    /usr/bin/HandBrakeCLI $HANDBRAKE_ARGS -i $MYTHDIR/$MPGFILE -o $newname | tr '\015' '\n' | \
+        awk '{ if (count++ % 100 == 0) print}'
 
     if [[ "$GENERATE_PREVIEWS" = "true" ]]; then
         echo "Generate Previews"
