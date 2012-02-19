@@ -115,8 +115,8 @@ function process_command {
 function doencode {
 newname="$MYTHDIR/${basename}.mp4"
 echo "Roku Encode $MPGFILE to $newname"
-# Force newlines for carriage returns on CLI output
-/usr/bin/HandBrakeCLI $HANDBRAKE_ARGS -i $MYTHDIR/$MPGFILE -o $newname | sed -u -e 's//\n/g'
+# Translate carriage returns to newlines for the log
+/usr/bin/HandBrakeCLI $HANDBRAKE_ARGS -i $MYTHDIR/$MPGFILE -o $newname | tr '\015' '\n'
 
 echo "Generate Previews"
 #Mythtv seems to have problems with keyframes in mp4s, so make previews with ffmpeg
