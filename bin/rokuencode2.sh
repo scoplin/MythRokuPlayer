@@ -161,10 +161,10 @@ function doencode {
     if [[ "$GENERATE_PREVIEWS" = "true" ]]; then
         echo "Generate Previews"
         # Mythtv seems to have problems with keyframes in mp4s, so make previews with ffmpeg
-        ffmpeg -loglevel quiet -ss 34 -vframes 1 -i $newname -y -f image2  $MYTHDIR/$newname.png
-        ffmpeg -loglevel quiet -ss 34 -vframes 1 -i $newname -y -f image2 -s 100x75 $MYTHDIR/$newname.-1.100x75.png
-        ffmpeg -loglevel quiet -ss 34 -vframes 1 -i $newname -y -f image2 -s 100x56 $MYTHDIR/$newname.-1.100x56.png
-        ffmpeg -loglevel quiet -ss 34 -vframes 1 -i $newname -y -f image2 -s 320x240 $MYTHDIR/$newname.-1.320x240.png
+        ffmpeg -loglevel quiet -ss 64 -vframes 1 -i $newname -y -f image2  $MYTHDIR/$newname.png
+        ffmpeg -loglevel quiet -ss 64 -vframes 1 -i $newname -y -f image2 -s 100x75 $MYTHDIR/$newname.-1.100x75.png
+        ffmpeg -loglevel quiet -ss 64 -vframes 1 -i $newname -y -f image2 -s 100x56 $MYTHDIR/$newname.-1.100x56.png
+        ffmpeg -loglevel quiet -ss 64 -vframes 1 -i $newname -y -f image2 -s 320x240 $MYTHDIR/$newname.-1.320x240.png
     fi
 
 
