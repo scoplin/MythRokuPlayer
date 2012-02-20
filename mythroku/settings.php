@@ -11,8 +11,8 @@ $ConfigFiles = array( '/usr/local/share/mythtv/mysql.txt',
                       'mysql.txt' );
 
 $config = load_config(find_config($ConfigFiles));
-$localhost = $_SERVER['SERVER_ADDR'];
-$WebServer = "http://$localhost/mythweb";      // include path to mythweb eg, http://yourip/mythweb
+$server_addr = $_SERVER['SERVER_ADDR'];
+$WebServer = "http://$server_addr/mythweb";      // include path to mythweb eg, http://yourip/mythweb
 $MythRokuDir = "mythroku";                     // name of your mythroku directory in the mythweb folder
 $RokuDisplayType = "HD";                       // set to the same as your Roku player under display type, HD or SD  
 $BitRate = "1500";                             // bit rate of endcoded streams
