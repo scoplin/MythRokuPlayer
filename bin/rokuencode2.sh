@@ -33,6 +33,7 @@ table with status information from HandBrakeCLI.
 Command can be one of the following
     encode - Encodes an mpg file to an mp4
     reset  - Resets the database back to the original recording
+    previews - Generate preview images from the mp4
 EOL
     exit $rc
 }
@@ -127,6 +128,9 @@ function process_command {
         reset)
           doreset || exit $?
           ;;
+        previews)
+          dopreviews || exit $?
+          ;;
     esac
 }
 
@@ -151,6 +155,29 @@ EOL
     done
 }
 
+function dopreviews {
+    echo "Generate Previews"
+    # Mythtv seems to have problems with keyframes in mp4s, so make previews with ffmpeg
+    # The algorithm that mythtv appears to use is to take a screencap about 1/3 of the way in,
+    # while adjusting for possible early starts on the recording
+    previewat=$(
+mysql -N --user=$DBUserName --password=$DBPassword --host=$DBHostName $DBName <<EOL
+SELECT CEIL(TIME_TO_SEC(progstart)-TIME_TO_SEC(starttime)+(TIME_TO_SEC(progend)-TIME_TO_SEC(progstart))/3)
+FROM recorded
+WHERE basename='$mpgname' OR basename='$mp4name'
+LIMIT 1;
+EOL
+    )
+
+    # Fallback
+    [[ -z "$previewat" ]] && previewat=600
+    echo "Previews being generated $previewat seconds into the recording."
+    ffmpeg -loglevel quiet -ss $previewat -vframes 1 -i "$mythdir/$mp4name" -y -f image2  "$mythdir/$mp4name.png"
+    ffmpeg -loglevel quiet -ss $previewat -vframes 1 -i "$mythdir/$mp4name" -y -f image2 -s 100x75 "$mythdir/$mp4name.-1.100x75.png"
+    ffmpeg -loglevel quiet -ss $previewat -vframes 1 -i "$mythdir/$mp4name" -y -f image2 -s 100x56 "$mythdir/$mp4name.-1.100x56.png"
+    ffmpeg -loglevel quiet -ss $previewat -vframes 1 -i "$mythdir/$mp4name" -y -f image2 -s 320x240 "$mythdir/$mp4name.-1.320x240.png"
+}
+
 function doencode {
     # Reset first just in case this is a re-encode
     doreset
@@ -162,14 +189,8 @@ function doencode {
     [[ $? -eq 0 ]] || exit $?
 
     if [[ "$GENERATE_PREVIEWS" = "true" ]]; then
-        echo "Generate Previews"
-        # Mythtv seems to have problems with keyframes in mp4s, so make previews with ffmpeg
-        ffmpeg -loglevel quiet -ss 64 -vframes 1 -i "$mythdir/$mp4name" -y -f image2  "$mythdir/$mp4name.png"
-        ffmpeg -loglevel quiet -ss 64 -vframes 1 -i "$mythdir/$mp4name" -y -f image2 -s 100x75 "$mythdir/$mp4name.-1.100x75.png"
-        ffmpeg -loglevel quiet -ss 64 -vframes 1 -i "$mythdir/$mp4name" -y -f image2 -s 100x56 "$mythdir/$mp4name.-1.100x56.png"
-        ffmpeg -loglevel quiet -ss 64 -vframes 1 -i "$mythdir/$mp4name" -y -f image2 -s 320x240 "$mythdir/$mp4name.-1.320x240.png"
+        dopreviews || exit $?
     fi
-
 
     if [[ "$UPDATE_DATABASE" = "true" ]]; then
         echo "Database/remove"
@@ -202,6 +223,7 @@ EOL
 function doreset {
     [[ ! -r "$mythdir/$mpgname" ]] && echo "Original not found to restore" && exit 1
 
+    echo "Restoring original recording for $mpgname"
     # update the db to point to the mpg
     if [[ "$UPDATE_DATABASE" = "true" ]]; then
         newfilesize=$(du -b "$mythdir/$mpgname" | cut -f1)
@@ -210,9 +232,12 @@ UPDATE recorded
 SET basename='$mpgname',filesize='$newfilesize',transcoded='0'
 WHERE basename='$mp4name';
 EOL
-        rm -f "$mythdir/$mp4name"
-        rm -f $mythdir/$mp4name*.png
     fi
+
+    # Remove the old encoded files
+    echo "Removing $mp4name and associated previews"
+    rm -f "$mythdir/$mp4name"
+    rm -f $mythdir/$mp4name*.png
 }
 
 # Set up logging and execute
