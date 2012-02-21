@@ -152,7 +152,8 @@ EOL
 }
 
 function doencode {
-    [[ ! -r "$mythdir/$mpgname" ]] && echo "MPEG file not found" && exit 1
+    # Reset first just in case this is a re-encode
+    doreset
 
     echo "Encode $mpgname to $mp4name"
     # Translate carriage returns to newlines for the log, and report progress sanely
